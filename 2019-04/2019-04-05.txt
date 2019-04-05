@@ -98,3 +98,7 @@
 
     如何来解决update ... where ...语句的死锁问题呢？我们可以对其进行分离，首先利用where条件找到主键，然后再利用这些主键去更新数据。
     因为select * where ...语句是没有锁的，所以不存在会锁上where条件里面的字段，也就不会发生死锁的情况，只有在update的时候回锁上主键。
+
+二.
+   Q:后端变量命名isXXX,类型为boolean,前端用isXXX传true,false的话后端接收不到
+   A:前端传xxx问题解决。框架在set时会过滤is,所以定义boolean类型变量的时候,尽量不要is开头。
