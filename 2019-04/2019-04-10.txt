@@ -50,4 +50,15 @@
     8.相关注释
         master:默认开发分支
         origin:默认远程版本库
-
+二.linux日常操作
+    1.vim全局替换
+        行首 :%s/^/your_word/
+        行尾 :%s/$/your_word/
+    2.按列切分文件
+        cut -f1 -f2 切分文件 (f1,f2指代第一列,第二列)
+    3.paste按规则和并列
+        paste -d:# b.txt c.txt 把b,c两个文件合并,用#隔开
+    4.大文件分割
+        split -l <n行数> <要分割的文件名> <分割后的文件名>
+        例如:按3000行分割文件a.txt
+        split -l 3000 a.txt part_
