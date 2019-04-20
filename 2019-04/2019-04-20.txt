@@ -1,0 +1,211 @@
+一.Bean（bean是我们使用最多的模型之一,以下记录bean的一些东西）
+    1.domain包名
+        domain是一个领域对象,往往我们在做传统的java web开发中,这些domain都是贫血模型,是没有行为的,
+        或是没有足够的领域模型的行为,所以,这些domain都应该是一个普通的entity对象,并非领域对象。所以
+        数据库表对应的包不要用com.xxx.domain,应该用com.xxx.entity。
+
+    2.DTO
+        数据传输应该使用DTO对象作为传输对象。只要是用于网络传输的对象,我们都认为他们可以当做是DTO对象,
+        比如电商平台,用户下单,下单后的数据,订单会发到oms,erp系统,这些对接的返回值以及入参也叫DTO对象。
+        我们约定某对象如果是DTO对象,就将名称改为XXXDTO。
+
+    3.DTO转化
+        (1).DTO为系统和外界交互的模型对象,那么肯定会有一个步骤是将DTO对象转化为BO或者是普通的entity对象,
+        让service层去处理。
+
+
+        (2).场景,添加用户前端传用户名和密码,后端需要将其转为User对象,保存到数据库。当属性过多时,一般用Bean
+        工具,BeanUtils.copyProperties(origin,dest);去赋值属性。我们只需要把DTO对象和要转化的对象两个
+        的属性值设为一样的名称,一样的类型就可以了。
+
+        (3).转化的语义,虽然BeanUtils可以转化,但是转化的语义是有问题的,我们需要体现一个转化的过程。所以,我们
+        改造了一下代码:
+        User user = convertFor(userDTO);
+
+        (4).抽象接口定义
+        在实际工作中,像上面的DTO转化操作其实是很多的,那么应该定义好一个接口,让所有这样的操作都有规则的进行。如果
+        接口被定义以后,那么convert方法的语义将产生变化,它将是一个实现类:
+
+        public interface DTOConvert<S,T> {
+            T convert(S s);
+        }
+        虽然这个接口很简单,但是这里告诉我们一个事情,要去使用泛型。
+
+二.Bean的验证
+        1.jsr 303验证
+
+        public class UserDTO {
+            @NotNull
+            private String username;
+            @NotNull
+            private int age;
+        }
+
+        @PostMapping
+        public UserDTO addUser(@Valid UserDTO userDTO){
+                User user =  userDTO.convertToUser();
+                User saveResultUser = userService.addUser(user);
+                UserDTO result = userDTO.convertFor(saveResultUser);
+                return result;
+        }
+
+        2.bean中的链式风格
+
+        public class Student {
+            private String name;
+            private int age;
+
+            public String getName() {
+                return name;
+            }
+
+            public Student setName(String name) {
+                this.name = name;
+                return this;
+            }
+
+            public int getAge() {
+                return age;
+            }
+
+            public Student setAge(int age) {
+                return this;
+            }
+        }
+
+        Student student = new Student()
+                .setAge(24)
+                .setName("zs");
+
+        相信合理使用这样的链式代码，会更多的程序带来很好的可读性，那看一下如果使用 lombok 进行改善呢，
+        请使用 @Accessors(chain = true)，看如下代码:
+
+        @Accessors(chain = true)
+        @Setter
+        @Getter
+        public class Student {
+            private String name;
+            private int age;
+        }
+
+        3.静态构造方法
+        静态构造方法的语义和简化程度真的高于直接去 new 一个对象。比如 new 一个 List 对象，过去的使用是这样的:
+        List<String> list = new ArrayList<>();
+        看一下 guava 中的创建方式:
+        List<String> list = Lists.newArrayList();
+
+        很多时候，我们去写 Student 这个 bean 的时候，他会有一些必输字段，比如 Student 中的 name 字段，一般
+        处理的方式是将name字段包装成一个构造方法,只有传入name这样的构造方法,才能创建一个Student对象。
+        我们可以利用lombok改造一下:@RequiredArgsConstructor 和 @NonNull
+
+        @Accessors(chain = true)
+        @Setter
+        @Getter
+        @RequiredArgsConstructor(staticName = "ofName")
+        public class Student {
+            @NonNull
+            private String name;
+            private int age;
+        }
+        Student student = Student.ofName("zs");
+
+三.lombok代理模式
+        1.正如我们所知的，在程序中调用 rest 接口是一个常见的行为动作，如果你和我一样使用过 spring 的 RestTemplate，
+        我相信你会我和一样，对他抛出的非 http 状态码异常深恶痛绝。
+        所以我们考虑将 RestTemplate 最为底层包装器进行包装器模式的设计:
+
+        public abstract class FilterRestTemplate implements RestOperations {
+                protected volatile RestTemplate restTemplate;
+
+                protected FilterRestTemplate(RestTemplate restTemplate){
+                        this.restTemplate = restTemplate;
+                }
+
+                //实现RestOperations所有的接口
+        }
+
+        然后再由扩展类对 FilterRestTemplate 进行包装扩展:
+        public class ExtractRestTemplate extends FilterRestTemplate {
+            private RestTemplate restTemplate;
+            public ExtractRestTemplate(RestTemplate restTemplate) {
+                    super(restTemplate);
+                    this.restTemplate = restTemplate;
+            }
+
+            public <T> RestResponseDTO<T> postForEntityWithNoException(String url, Object request,
+                            Class<T> responseType, Object... uriVariables)
+                            throws RestClientException {
+                    RestResponseDTO<T> restResponseDTO = new RestResponseDTO<T>();
+                    ResponseEntity<T> tResponseEntity;
+                    try {
+                            tResponseEntity = restTemplate.postForEntity(url, request, responseType, uriVariables);
+                            restResponseDTO.setData(tResponseEntity.getBody());
+                            restResponseDTO.setMessage(tResponseEntity.getStatusCode().name());
+                            restResponseDTO.setStatusCode(tResponseEntity.getStatusCodeValue());
+                    }catch (Exception e){
+                            restResponseDTO.setStatusCode(RestResponseDTO.UNKNOWN_ERROR);
+                            restResponseDTO.setMessage(e.getMessage());
+                            restResponseDTO.setData(null);
+                    }
+                    return restResponseDTO;
+            }
+        }
+
+        包装器 ExtractRestTemplate 很完美的更改了异常抛出的行为，让程序更具有容错性。以下是 FilterRestTemplate
+        实现 RestOperations 所有的接口:
+
+        public abstract class FilterRestTemplate implements RestOperations {
+
+            protected volatile RestTemplate restTemplate;
+
+            protected FilterRestTemplate(RestTemplate restTemplate) {
+                    this.restTemplate = restTemplate;
+            }
+
+            @Override
+            public <T> T getForObject(String url, Class<T> responseType, Object... uriVariables) throws RestClientException {
+                    return restTemplate.getForObject(url,responseType,uriVariables);
+            }
+
+            @Override
+            public <T> T getForObject(String url, Class<T> responseType, Map<String, ?> uriVariables) throws RestClientException {
+                    return restTemplate.getForObject(url,responseType,uriVariables);
+            }
+
+            @Override
+            public <T> T getForObject(URI url, Class<T> responseType) throws RestClientException {
+                    return restTemplate.getForObject(url,responseType);
+            }
+
+            @Override
+            public <T> ResponseEntity<T> getForEntity(String url, Class<T> responseType, Object... uriVariables) throws RestClientException {
+                    return restTemplate.getForEntity(url,responseType,uriVariables);
+            }
+            //其他实现代码略。。。
+        }
+
+        我相信你看了以上代码，你会和我一样觉得恶心反胃，后来我用 lombok 提供的代理注解优化了我的代码(@Delegate):
+
+        @AllArgsConstructor
+        public abstract class FilterRestTemplate implements RestOperations {
+            @Delegate
+            protected volatile RestTemplate restTemplate;
+        }
+
+四.重构
+        1.思考与重构。仔细考虑如何写代码,然后再去写。
+
+        2.业务驱动技术 or 技术驱动业务
+
+        业务驱动技术 or 技术驱动业务 ？ 其实这是一个一直在争论的话题，但是很多人不这么认为，我觉得就是大家不愿意承认罢了。
+        我来和大家大概分析一下作为一个 Java 程序员，我们应该如何判断自己所处于的位置.
+
+        业务驱动技术：如果你所在的项目是一个收益很小或者甚至没有收益的项目，请不要搞其他创新的东西，不要驱动业务要如何如何做，
+        而是要熟知业务现在的痛点是什么？如何才能帮助业务盈利或者让项目更好，更顺利的进行。
+
+        技术驱动业务：如果你所在的项目是一个很牛的项目，比如淘宝这类的项目，我可以在满足业务需求的情况下，和业务沟通，使用什么
+        样的技术能更好的帮助业务创造收益，比如说下单的时候要进队列，可能几分钟之后订单状态才能处理完成，但是会让用户有更流畅的
+        体验，赚取更多的访问流量，那么我相信业务愿意被技术驱动，会同意订单的延迟问题，这样便是技术驱动业务。
+        我相信大部分人还都处于业务驱动技术的方向吧。
+        所以你既然不能驱动业务，那就请拥抱业务变化吧。
+

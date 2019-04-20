@@ -1,3 +1,5 @@
 一.前端快捷开发后管系统的框架
     1.飞冰:https://ice.work/docs/iceworks
     2.语言:ant design ,react https://ant.design/docs/react/use-in-typescript-cn
+    3.实体模型,dva
+    4.包结构
