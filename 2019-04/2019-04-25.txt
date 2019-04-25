@@ -1,0 +1,23 @@
+一.zk基础知识
+        1.什么是zk
+            zk主要服务于分布式系统,可以用来做,统一配置管理,统一命名服务,分布式锁,集群管理。
+            使用分布式系统无法避免对节点的管理问题（需要实时感知节点的状态,对节点进行统一管理）
+        2.zk结构
+            zk数据结构,可以看做是一棵树,每个节点叫做zNode,每一个节点可以通过路径来标识。
+        3.zNode类型
+            临时:当客户端和服务端断开连接后,所创建的zNode会自动删除。
+            持久:当客户端和服务端断开连接后,所创建的zNode不会删除。
+            带顺序号节点和不带顺序号的节点。
+        4.监听器
+            常见监听场景,监听zNode节点的数据变化,监听子节点的增减变化。
+        5.统一配置管理
+            https://blog.csdn.net/u011320740/article/details/78742625
+        6.参考资料
+            分布式服务框架 Zookeeper
+            https://www.ibm.com/developerworks/cn/opensource/os-cn-zookeeper/index.html
+            ZooKeeper初识整理(老酒装新瓶)
+            https://lxkaka.wang/2017/12/21/zookeeper/
+            ZooKeeper
+            https://www.cnblogs.com/sunshine-long/p/9057191.html
+            ZooKeeper 的应用场景
+            https://zhuanlan.zhihu.com/p/59669985
