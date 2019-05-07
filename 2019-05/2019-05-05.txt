@@ -1,0 +1,50 @@
+前端antd + dva
+1.antd相关文档链接
+    预览: http://preview.pro.ant.design/index-cn
+    首页: http://pro.ant.design/index-cn
+    文档: http://pro.ant.design/docs/getting-started-cn
+    更新日志: http://pro.ant.design/docs/changelog-cn
+    常见问题: http://pro.ant.design/docs/faq-cn
+    Yarn: https://yarnpkg.com/zh-Hans/docs/usage
+    git: https://github.com/ant-design/ant-design-pro/issues
+2.环境安装
+    node(8.4以上)
+    用cnpm或yarn能节约你安装依赖的时间
+    更换npm源:
+    npm config set registry https://registry.npm.taobao.org # 设置
+    npm config get registry # 验证
+    安装yarn
+    npm install -g yarn
+    安装依赖:
+    npm install
+    yarn install # 或者
+    yarn
+3.项目启动
+    npm run start
+    npm run dev(test)
+    或者
+    yarn run start
+4.目录结构
+    ├── config                   # umi 配置，包含路由，构建等配置
+    ├── mock                     # mock
+    ├── public
+    │   └── favicon.png          # Favicon
+    ├── src
+    │   ├── assets               # 本地静态资源
+    │   ├── components           # 业务通用组件
+    │   ├── e2e                  # 集成测试用例
+    │   ├── layouts              # 通用布局
+    │   ├── models               # 全局 dva model
+    │   ├── pages                # 业务页面入口和常用模板
+    │   ├── services             # 后台接口服务
+    │   ├── utils                # 工具库
+    │   ├── locales              # 国际化资源
+    │   ├── global.less          # 全局样式
+    │   └── global.js            # 全局 JS
+    ├── tests                    # 测试工具
+    ├── README.md
+    └── package.json
+5.antd实战
+    https://www.yuque.com/ant-design/course
+
+
