@@ -1,0 +1,102 @@
+一.spring过滤器
+    配置xssFilter
+
+    @Configuration
+    public class FilterConfig {
+        /**
+         *boot 1.x版本不需要
+        /*
+        @Bean
+        public FilterRegistrationBean<XssFilter> xssFilterRegistrationBean() {
+            //设置初始化参数(自定义参数)
+            Map<String, String> initParameters = new HashMap<>();
+            //excludes用于配置不需要参数过滤的请求url
+            initParameters.put("excludes", "/favicon.ico,/img/*,/js/*,/css/*");
+            //isIncludeRichText默认为true，主要用于设置富文本(项目内约束以content为名或以WithHtml结尾)内容是否需要过滤,
+            //该选项可根据公司具体情况调整,建议约束富文本编辑框支持的标签并开启改约束,减少安全隐患
+            initParameters.put("isIncludeRichText", "true");
+
+            FilterRegistrationBean<XssFilter> filterRegistrationBean = new FilterRegistrationBean<>();
+            //设置过滤器
+            filterRegistrationBean.setFilter(new XssFilter());
+            //设置过滤器执行顺序,1优先级最高
+            filterRegistrationBean.setOrder(1);
+            filterRegistrationBean.setEnabled(true);
+            //设置需要过滤的url(/*表示所有的url)
+            filterRegistrationBean.addUrlPatterns("/*");
+            //自定义的初始化参数
+            filterRegistrationBean.setInitParameters(initParameters);
+            return filterRegistrationBean;
+        }
+
+        @Bean
+        public FilterRegistrationBean modifyParametersFilter() {
+            FilterRegistrationBean registration = new FilterRegistrationBean();
+            registration.setFilter(new ModifyHeadersFilter());
+            //拦截器拦截的路径
+            registration.addUrlPatterns("xxx");
+            // 拦截器名称
+            registration.setName("xxx");
+            // 顺序
+            registration.setOrder(1);
+            return registration;
+        }
+
+        /**
+         * 自定义拦截器,修改请求头
+         */
+        class ModifyHeadersFilter extends OncePerRequestFilter {
+            @Override
+            protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response
+                    , FilterChain filterChain) throws ServletException, IOException {
+                modifyHeaders(request);
+                //HttpServletRequestWrapper可以重新组装请求
+                HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(request);
+                filterChain.doFilter(requestWrapper, response);
+            }
+
+            /**
+             * 修改请求头信息
+             * @param request
+             */
+            private void modifyHeaders(HttpServletRequest request) {
+                Class<? extends HttpServletRequest> requestClass = request.getClass();
+                try {
+                    Field orgReq = requestClass.getDeclaredField("orgRequest");
+                    orgReq.setAccessible(true);
+                    Object req = orgReq.get(request);
+                    Field request1 = req.getClass().getDeclaredField("request");
+                    request1.setAccessible(true);
+                    Object o = request1.get(req);
+                    Field coyoteRequest = o.getClass().getDeclaredField("coyoteRequest");
+                    coyoteRequest.setAccessible(true);
+                    Object o1 = coyoteRequest.get(o);
+                    Field headers = o1.getClass().getDeclaredField("headers");
+                    headers.setAccessible(true);
+                    MimeHeaders o2 = (MimeHeaders)headers.get(o1);
+                    o2.addValue("client_type").setString("web");
+                    o2.setValue("client_id").setString("finance");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+
+二.snapshot和release包区别
+    1.Snapshot版本代表不稳定、尚处于开发中的版本，快照版本。
+    2.Release版本则代表稳定的版本，发行版本。
+    3.什么时候用Snapshot版本？
+    依赖库中的jar正处于开发的阶段，会被经常被更新，这种情况下，如果使用Release，会频繁增加版本号，导致版本号的滥用。
+    在上传jar时，选择Snapshot和Release上传时，在版本号的构建上有所不同，如图：
+    上传同样版本号的jar包,snapshot在版本号后面会自动追加一串新的数字,也就是所谓的日期标签,这样在不断更新jar包时,
+    可以不用每次都要将版本号提高一个版本,可以有效维护版本号。
+    4.稳定版用snapshot版本行不行?
+      不行,会造成不稳定。
+      比如说，今天你依赖某个snapshot版本的第三方库成功构建了自己的应用，明天再构建时可能就会失败，因为今晚第三方可能已经
+      更新了它的snapshot库。你再次构建时，Maven会去远程repository下载snapshot的最新版本，你构建时用的库就是新的jar
+      文件了，这时正确性就很难保证了。稳定版应该依赖Release版本的jar包，这样更新时需要更新版本号，版本号没变时，依赖的jar
+      包也不会变。
+
+
