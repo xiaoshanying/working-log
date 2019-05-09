@@ -1,0 +1,58 @@
+Antd + dva相关
+    1.componentDidMount()里面的方法只加载一次
+    2.页面与model通信用
+    dispatch({
+          type: '命名空间/effect里面的方法',
+          payload: { 页面传给Model的对象},
+        });
+    3.effects是异步渲染,
+    effects: {
+        *initializationData({ payload, callback }, { call, put }) {
+               try {
+                 yield put({
+                   type: '对应reducer里面的同步方法',
+                   payload,
+                 });
+               } catch (e) {
+                 return e.response;
+               }
+             },
+    }
+    4.reducers同步数据
+    reducers: {
+        addModalList(state, { payload }) {
+              return {
+                ...state,
+                list: payload.list,
+                amount: payload.amount,
+              };
+            },
+    }
+    5.model的定义
+    export default {
+        namespace: 'xxx' //和页面通信时需要
+        state: {
+            //定义model的属性值
+        }
+    }
+    6.页面连接model
+    @connect(({ loading, user, 命名空间 }) => ({
+      user,
+      命名空间,
+      xxxLoading: loading.effects['命名空间1/方法1'], //异步调用
+    }))
+    7.钩子函数,检测页面属性值的变化,并作出相应的动作
+    static getDerivedStateFromProps(nextProps, prevState) {
+        const {
+          //检测的对象
+        } = nextProps;
+        if (目标对象发生变化) {
+          let aa = bb === 0 ? 0 : aa;
+          return {
+            aa,
+            bb,
+          };
+        }
+        // 否则，对于state不进行任何操作
+        return null;
+      }
