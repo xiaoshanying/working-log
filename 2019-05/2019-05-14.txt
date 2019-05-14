@@ -1,0 +1,45 @@
+分布式系统的负载均衡模块的设计与实现。
+1.分布式系统在业务处理过程中需要通过网络连接调用下游部件提供的服务,即发送请求给下游部件。
+2.下游部件是一个集群环境(多台主机对外提供相同的服务)。因此,该系统调用其下游部件服务的时
+  候需要进行负载均衡控制,保障下游部件的各台主机上接收到的请求数分布均匀。
+3.该系统调用下游部件时的负载均衡控制需要在不重启应用程序,服务器的情况下满足一下几点:
+    (1)支持多种负载均衡算法,随机轮询,加权随机轮询。
+    (2)系统运行过程中动态调整负载均衡算法。
+    (3)在调用下游部件的过程中,下游部件中的非在线主机需要被排除在外,发送给下游部件的请求
+       不能被派发给非在线主机。
+    (4)下游部件的节点信息可以动态调整,如处于维护的需要临时删除一个节点过后有将其重新添加。
+4.负责调用其下游部件服务的类为:
+    public class ServiceInvoker{
+        //当前类的唯一实例
+        private static final ServiceInvoker INSTANCE = new ServiceInvoker();
+        //负载均衡器实例,使用volatile变量保障可见性
+        private volatile LoadBalancer loadBalancer;
+
+        private ServiceInvoker(){}
+
+        public static ServiceInvoker getInstance(){
+            return INSTANCE;
+        }
+
+        public void dispatchRequest(Request request){
+            Endpoint endpoint = getLoadBalancer().nextEndpoint();
+            if(null == endpoint){
+                return;
+            }
+            //请求转发给下游部件
+            dispatchToDownStream(request,endpoint);
+        }
+
+        private void dispatchToDownStream(Request request,Endpoint endpoint){
+            Debug.info('Dispatch request to' + endpoint + ':' + request);
+            //转发请求
+        }
+
+        public LoadBalancer getLoadBalancer(){
+            return loadBalancer;
+        }
+
+        public void setLoadBalancer(LoadBalancer loadBalancer){
+            this.loadBalancer = loadBalancer;
+        }
+    }
