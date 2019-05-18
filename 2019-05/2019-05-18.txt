@@ -1,0 +1,110 @@
+一.java三种阻塞队列
+    1.何为阻塞?
+        从传输通道中存入一个产品或者取出一个产品时,相应的线程可能因为传输通道中没有产品或者其存储空间已满而被阻塞。
+    2.阻塞方法/操作会导致上下文的切换。
+    3.常见的阻塞方法?
+        流的读写,lock,内部锁。。。
+    4.往队列存入一个对象的操作被称为put操作,从队列中取出一个元素的操作被称为take操作。put操作相当于生产者线程将对象安全发布到
+      消费者线程。生产者执行put操作前所执行的任何内存操作,对后续执行take操作的消费者线程而言是可见的,有序的。
+    5.有界队列可以使用ArrayBlockingQueue或者LinkedBlockingQueue来实现。ArrayBlockingQueue内部使用一个数组作为存储
+      空间,数组的存储空间是预先分配的,因此ArrayBlockingQueue的put操作,take操作本身并不会增加垃圾回收的负担,缺点是,put,take操作
+      使用的同一把锁,会导致锁的高争用,进而导致较多的上下文切换。(并发程度较低用)
+    6.LinkedBlockingQueue既能实现无界队列,也能实现有界队列。优点:put take操作分别使用了两把锁,降低了锁争用的可能性。LinkedBlockingQueue
+      内部存储空间是一个链表,链表节点所需的存储空间是动态分配的,put take都会导致链表节点的动态创建和删除,所以,缺点是可能增加垃圾回收
+      的负担。另外,take,put使用两把锁,size使用的是原子变量(AtomicInteger),这个原子变量可能会被生产者和消费者线程争用,导致额外的开销。
+      (并发程度较高用)
+    7.SynchronousQueue是一种特殊的有界队列。内部不维护存储队列元素的存储空间。特殊之处在于,SynchronousQueue.put(P)时如果没有
+      消费者线程执行了SynchronousQueue.take(),那么该生产者线程会被暂停,直到有消费者线程执行了take()。反过来也是一样。因此在使用
+      SynchronousQueue作为传输通道时。put操作之后会等待take操作。适用于消费者处理能力与生产者处理能力相差不大的情况。否则或大致较多的等待。
+      (消费者处理能力和生产者处理能力相差不大时用)
+    8.SynchronousQueue，ArrayBlockingQueue支持公平和非公平调度,LinkedBlockingQueue仅支持非公平调度。
+    9.可以使用阻塞队列加信号量进行流控。
+二.java线程池四种拒绝策略
+    RejectedExecutionHandler rejected = null;
+    1.rejected = new ThreadPoolExecutor.AbortPolicy();//默认，队列满了丢任务抛出异常
+    2.rejected = new ThreadPoolExecutor.DiscardPolicy();//队列满了丢任务不异常
+    3.rejected = new ThreadPoolExecutor.DiscardOldestPolicy();//将最早进入队列的任务删之后再尝试加入队列
+    4.rejected = new ThreadPoolExecutor.CallerRunsPolicy();//如果添加到线程池失败，那么主线程会自己去执行该任务
+三.java五中线程池
+   ExecutorService threadPool = null;
+   1.threadPool = Executors.newCachedThreadPool();//有缓冲的线程池，线程数 JVM 控制
+   2.threadPool = Executors.newFixedThreadPool(3);//固定大小的线程池
+   3.threadPool = Executors.newScheduledThreadPool(2);
+   4.threadPool = Executors.newSingleThreadExecutor();//单线程的线程池，只有一个线程在工作
+   5.threadPool = new ThreadPoolExecutor();//默认线程池，可控制参数比较多
+   6.线城池参数
+     int corePoolSize=2;//最小活跃线程数
+     int maximumPoolSize=5;//最大活跃线程数
+     int keepAliveTime=5;//指定线程池中线程空闲超过 5s 后将被回收
+     TimeUnit unit = TimeUnit.SECONDS;//keepAliveTime 单位
+     //阻塞队列
+     BlockingQueue<Runnable> workQueue = null;
+     workQueue = new ArrayBlockingQueue<>(5);//基于数组的先进先出队列，有界
+     workQueue = new LinkedBlockingQueue<>();//基于链表的先进先出队列，无界
+     workQueue = new SynchronousQueue<>();//无缓冲的等待队列，无界
+     //拒绝策略
+     RejectedExecutionHandler rejected = null;
+     rejected = new ThreadPoolExecutor.AbortPolicy();//默认，队列满了丢任务抛出异常
+     rejected = new ThreadPoolExecutor.DiscardPolicy();//队列满了丢任务不异常
+     rejected = new ThreadPoolExecutor.DiscardOldestPolicy();//将最早进入队列的任务删，之后再尝试加入队列
+     rejected = new ThreadPoolExecutor.CallerRunsPolicy();//如果添加到线程池失败，那么主线程会自己去执行该任务
+     //使用的线程池
+     threadPool = new ThreadPoolExecutor(
+                 corePoolSize,
+                 maximumPoolSize,
+                 keepAliveTime,
+                 unit,
+                 workQueue,
+                 rejected);//默认线程池，可控制参数比较多
+     //执行无返回值线程
+     TaskRunnable taskRunnable = new TaskRunnable();
+     threadPool.execute(taskRunnable);
+
+      //执行有返回值线程
+     List<Future<String>> futres = new ArrayList<>();
+     for(int i=0;i<10;i++) {
+         TaskCallable taskCallable = new TaskCallable(i);
+         Future<String> future = threadPool.submit(taskCallable);
+         futres.add(future);
+     }
+     for(int i=0;i<futres.size();i++){
+         String result = futres.get(i).get();
+         System.out.println(i+" result = "+result);
+     }
+
+    /**
+    * 无返回值的线程，使用 threadpool.execut() 执行
+    */
+    public static class TaskRunnable implements Runnable{
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println(Thread.currentThread().getName() + " runnable result!");
+        }
+    }
+
+    /**
+    * 有返回值的线程，使用 threadpool.submit() 执行
+    */
+    public static class TaskCallable implements Callable<String>{
+        public TaskCallable(int index){
+            this.i=index;
+        }
+        private int i;
+        @Override
+        public String call() throws Exception {
+            int r = new Random().nextInt(5);
+            try {
+                Thread.sleep(r);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            //System.out.println("callable result!");
+            return Thread.currentThread().getName()+" callable index="+i +",sleep="+r;
+        }
+
+
