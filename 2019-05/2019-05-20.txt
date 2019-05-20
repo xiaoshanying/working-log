@@ -1,0 +1,2 @@
+MYSQL半同步复制
+https://www.cnblogs.com/ivictor/p/5735580.html
