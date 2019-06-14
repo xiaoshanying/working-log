@@ -1,0 +1,101 @@
+一.gitLab搭建
+要求:内存2G空闲
+
+步骤:
+1.下载gitlab镜像
+2.安装依赖服务
+    sudo yum install -y curl openssh-server openssh-clients cronie
+    sudo lokkit -s http -s ssh
+3.安装邮件服务
+    sudo yum install postfix sudo service postfix start sudo chkconfigpostfix on
+4.安装gitlab组件s
+    sudo rpm -ivh gitlab-ce-9.5.4-ce.0.el6.x86_64.rpm
+5.配置gitlab
+    vim /etc/gitlab/gitlab.rb
+    #改成本机地址
+    external_url='http://192.168.0.101'
+    #默认8080 易引起冲突，建议修改为其它端口
+    unicorn['port'] = 8080
+6.启动gitlab
+    sudo gitlab-ctl reconfigure
+7.基本操作
+    gitlab 基本操作命令
+    sudo gitlab-ctl start # 启动所有 gitlab 组件；
+    sudo gitlab-ctl stop # 停止所有 gitlab 组件；
+    sudo gitlab-ctl restart # 重启所有 gitlab 组件；
+    sudo gitlab-ctl status # 查看服务状态；
+    sudo gitlab-ctl reconfigure # 启动服务；
+    sudo vim /etc/gitlab/gitlab.rb # 修改默认的配置文件
+
+二.maven私服搭建
+
+1.下载nexus
+    https://sonatype-download.global.ssl.fastly.net/nexus/oss/nexus-2.14.5-02-bundle.tar.gz
+
+2.解压并设置环境变量
+    (1)解压
+       tar -xvzf nexus-2.14.5-02-bundle.tar.gz
+    (2)在环境变量中设置启动用户
+        vim /etc/profile
+        安全起见,不建议使用rootyong用户
+        RUN_AS_USER=root
+    (3)配置启动参数
+        vi ${nexusBase}/conf/nexus.properties
+        端口号:application-port = 8081
+        仓库地址:nexus-work=${bundleBasedir}/../sonatype-work/nexus
+
+3启动与停止
+    ${nexusBase}/bin/nexus start
+    ${nexusBase}/bin/nexus stop
+
+4登录nexus界面
+    http://{ip}:8081/nexus/
+
+5.手动更新索引
+  前往maven中央仓库下载indexer-cli-5.1.1.jar
+  http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.apache.maven.indexer%22%20AND%20a%3A%22indexer-cli%22
+  下载索引文件
+  http://repo.maven.apache.org/maven2/.index/
+  nexus-maven-repository-index.gz
+  nexus-maven-repository-index.properties
+  解压索引引文件
+  java -jar indexer-cli-5.1.1.jar -u nexus-maven-repository-index.gz -d indexer
+  拷贝索引文件至索引目录
+  {nexus-home}/sonatype-work/nexus/indexer/central-ctx
+
+三.maven基本插件的使用
+    1.设置jre 版本
+        两种方式：第一种是局部项目修改 pom.xml 设置compiler 插件。第二种是全局修改setting.xml 文件 配 置profile
+        <!-- 修改compiler 插件已设置jre 源码版本和编译版本-->
+        <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+        <source>1.7</source>
+        <target>1.7</target>
+        </configuration>
+        </plugin>
+        <!-- 设置setting.xml 文件中 为profile 添加属性-->
+        <properties>
+        <maven.compiler.source>1.7</maven.compiler.source>
+        <maven.compiler.target>1.7</maven.compiler.target>
+        <maven.compiler.compilerVersion>1.7</maven.compiler.compilerVersion>
+        </properties>
+
+    2.生成一个源码包
+        <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>2.4</version>
+        <executions>
+        <execution>
+        <id>attach-source</id>
+        <phase>verify</phase>
+        <goals>
+        <goal>jar-no-fork</goal>
+        </goals>
+        </execution>
+        </executions>
+        </plugin>
+
+
