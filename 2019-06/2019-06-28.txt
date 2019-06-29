@@ -1,0 +1,249 @@
+SpringCloud相关总结
+1.what?
+    SpringCloud构建在boot之上,用于快速构建分布式系统,提供分布式系统所需要的工具集合。
+
+2.核心功能
+    (1)分布式,版本化的配置管理
+    (2)服务注册与发现
+    (3)路由
+    (4)端到端的调用
+    (5)负载均衡
+    (6)断路器
+    (7)全局锁
+    (8)分布式消息
+
+3.SpringCloud 和 SpringBoot区别和关系
+    (1)boot专注单体,cloud专注全局服务治理。将单体服务整合并且管理起来,为各个微服务之间提供配置管理,服务发现,断路器..
+
+4.微服务优缺点
+    优点:
+        每一个服务足够内聚,代码容易理解
+        开发效率提高，一个服务只做一件事
+        微服务能够被小团队单独开发
+        微服务是松耦合的，是有功能意义的服务
+        可以用不同的语言开发,面向接口编程
+        可以用不同的语言开发,面向接口编程
+        可以灵活搭配,连接公共库/连接独立库
+    缺点:
+        可以灵活搭配,连接公共库/连接独立库
+        多服务运维难度，随着服务的增加，运维的压力也在增大
+        系统部署依赖
+        服务间通信成本
+        数据一致性
+
+5.注册中心
+    在 Spring Cloud 中，能够使用的注册中心，还是比较多的，如下：
+    spring-cloud-netflix-eureka-server 和 spring-cloud-netflix-eureka-client ，基于 Eureka 实现。
+    spring-cloud-alibaba-nacos-discovery ，基于 Nacos 实现。
+    spring-cloud-zookeeper-discovery ，基于 Zookeeper 实现。
+    以上的实现，都是基于 spring-cloud-commons 的 discovery 的 DiscoveryClient 接口，实现统一的客户端的注册发现。
+
+
+    为啥要使用服务发现?
+    consumer通过注册中心获得Provider的地址,从而进行调用。
+
+6.Eureka
+    服务注册与发现
+    CS模式
+    在应用启动时,（客户端向服务端注册自己服务的信息）,（同时会将服务端的服务信息缓存到本地）。
+    客户端和服务端周期性的进行心跳交互,更新租约信息和服务信息。
+
+    集群配置
+        两个eureka互相注册即可
+        客户端引入时:引入两个eureka的Url
+
+    Eureka缓存机制
+        生产环境最佳配置
+            server端:
+            ## 中小规模下，自我保护模式坑比好处多，所以关闭它
+            eureka.server.enableSelfPreservation=false
+            ## 心跳阈值计算周期，如果开启自我保护模式，可以改一下这个配置
+            ## eureka.server.renewalThresholdUpdateIntervalMs=120000
+
+            ## 主动失效检测间隔,配置成5秒
+            eureka.server.evictionIntervalTimerInMs=5000
+
+            ## 心跳间隔，5秒
+            eureka.instance.leaseRenewalIntervalInSeconds=5
+            ## 没有心跳的淘汰时间，10秒
+            eureka.instance.leaseExpirationDurationInSeconds=10
+
+            ## 禁用readOnlyCacheMap
+            eureka.server. useReadOnlyResponseCache=false
+
+            client端:
+            ## 心跳间隔，5秒
+            eureka.instance.leaseRenewalIntervalInSeconds=5
+            ## 没有心跳的淘汰时间，10秒
+            eureka.instance.leaseExpirationDurationInSeconds=10
+
+            # 定时刷新本地缓存时间
+            eureka.client.registryFetchIntervalSeconds=5
+            # ribbon缓存时间
+            ribbon.ServerListRefreshInterval=2000
+
+        缓存带来的问题:
+            修改client默认心跳时间,会导致自我保护模式失效。
+            Eureka server认为客户端是以30s的频率来发送心跳的。服务端期望收到的最大心跳时间是
+            n(实例个数) * 2(60s/30s) * threshold
+
+            如果是两个实例,Eureka会期望每分钟有 2 * 2 * 85% = 3.4个心跳,需要3个心跳。
+            如果client改为15s,挂掉一个,另一个1min 发4个心跳,此时阈值还是3.4,就会导致服务端不能发现挂掉的服务,自我保护模式失效。
+            核心原因就是在Eureka Server计算期望心跳数的时候写死了每分钟的心跳间隔，即30秒
+
+            心跳阈值重新计算的周期,默认15分钟,可以改短一点。
+
+            客户端首次注册为什么要30s?如何改进?
+            首次注册和首次心跳绑定在一起,首次心跳发送以后会受到not found的响应,client就会知道没注册过,就会马上去注册。
+            首次心跳参数:
+            eureka.instance.leaseRenewalIntervalInSeconds控制的，默认30
+
+            可以通过eureka.client.initialInstanceInfoReplicationIntervalSeconds参数来加快首次注册的速度。
+            他是控制首次改变实例状态（UP/DOWN ）的时间，启动的时候状态肯定是需要改变的，所以他可以用来加快首次注册速度，
+            并且改变这个值不会影响到保护模式。
+
+            其他影响快速获取服务信息的因素
+            服务端缓存:
+                因为服务端默认会有个read only response cache（下面会细说），每30秒更新一次(eureka.server.response-cache-update-interval-ms),
+                所以可能注册了不是马上能看到（虽然通过rest api不能看到，但是你可以在web ui上看到，因为ui没有缓存）
+
+            客户端缓存:
+                Eureka Client缓存的定期更新周期，他由eureka.client.registryFetchIntervalSeconds控制，默认30秒， 改成5秒
+
+            Ribbon缓存:
+                如果你采用Ribbon来访问服务，那么这里会有个缓存（他的数据来源是本地Eureka Client缓存），他由ribbon. ServerListRefreshInterval控制，默认30秒， 改成2秒
+
+            怎样更快的踢掉没有心跳的机器?
+                eureka.instance.leaseExpirationDurationInSeconds，这个值用来控制多久踢掉机器，默认是3个心跳周期，有点久，可以考虑改成2个，他不会影响到保护模式
+
+            服务端缓存细节
+                Eureka有很多缓存,主要有registry,readWriterCacheMap,readOnlyCacheMap,还有一个维护最近180s增量的队列recentlyChangedQueue
+
+            写操作:
+                注册,取消注册,直接在register上操作,同时会更新recentlyChangedQueue和readWriterCacheMap
+
+            读操作:
+                从readOnlyCacheMap读取,读不到从readWriterCacheMap,没有在从register
+            readOnlyCacheMap则是一个定时任务，每responseCacheUpdateIntervalMs(默认30)秒从readWriterCacheMap获取最新数据
+
+            Time lag
+            服务正常上线/修改，最大可能会有120s滞后
+            - 30(首次注册 init registe) + 30(readOnlyCacheMap)+30(client fetch interval)+30(ribbon)=120
+            - 如果是在Spring Cloud环境下使用这些组件(Eureka, Ribbon)，不会有首次注册30秒延迟的问题，服务启动后会马上注册,所以从注册到发现，最多可能是90s。
+
+            服务异常下线：最大可能会有270s滞后
+            - 定时清理任务每eureka.server. evictionIntervalTimerInMs(默认60)执行一次清理任务
+            - 每次清理任务会把90秒(3个心跳周期，eureka.instance.leaseExpirationDurationInSeconds)没收到心跳的踢除，但是根据官方的说法 ，因为代码实现的bug，这个时间其实是两倍，即180秒，也就是说如果一个客户端因为网络问题或者主机问题异常下线，可能会在180秒后才剔除
+            - 读取端，因为readOnlyCacheMap以及客户端缓存的存在，可能会在30(readOnlyCacheMap)+30(client fetch interval)+30(ribbon)=90
+            - 所以极端情况最终可能会是180+90=270
+
+
+
+    Eureka自我保护模式
+        现象:当访问eureka时出现:EMERGENCY ... JUST TO BE SAFE就表明,eureka的自我保护模式启动了,
+        原因:当Eureka在短时间内丢失了过多实例连接的时候(网络抖动或者频繁启动关闭客户端),那么这个节点就会进入自我保护模式。
+        action:一旦进入该模式,Eureka会保护服务注册表中的信息,不再删除服务注册表中的数据。
+        什么时候退出该模式:当网络故障恢复后,该Eureka节点就会自动退出自我保护模式。
+
+
+        默认情况下:Eureka server在一段时间没有接受到某个微服务实例的心跳,便会注销该实例(默认90s)。一旦进入保护模式,即使你关闭了指定
+        实例,仍然会发现该Eureka server的注册实例中会存在被关闭的实例信息,如果做了负载均衡,那么当仅关闭一个的时候,通过网关调用
+        接口api时很可能发生如下异常:
+        {
+            "timestamp": 1507707671780,
+            "status": 500,
+            "error": "Internal Server Error",
+            "exception": "com.netflix.zuul.exception.ZuulException",
+            "message": "GENERAL"
+        }
+
+        解决方法:
+        (1)等待Eureka server自动恢复
+        (2)重启Eureka server
+        (3)关闭自我保护模式(不推荐在生产上用)
+            eureka:
+              server:
+                enable-self-preservation: false
+                eviction-interval-timer-in-ms: 4000 # This is not required
+
+        关闭自我保护模式，会有另外一个可能的问题，即隔一段时间后，可能会发生实例并未关闭，却无法通过网关访问了，
+        此时很可能是由于网络问题，导致实例（或网关）与 Eureka Server 断开了连接，Eureka Server 已经将其注销
+        （网络恢复后，实例并不会再次注册），此时重启 Eureka Server 节点或实例，并等待一小段时间即可。
+
+
+
+7.负载均衡
+    可以使用的:
+        spring-cloud-netflix-ribbon 基于Ribbon实现
+        spring-cloud-loadBalancer 提供简单的负载均衡
+        以上的实现，都是基于 spring-cloud-commons 的 loadbalancer 的 ServiceInstanceChooser 接口，
+        实现统一的服务的选择。并且，负载均衡组件在选择需要调用的服务之后，还提供调用该服务的功能，
+        具体方法见 LoadBalancerClient 接口的 #execute(...) 方法。
+
+    为什么要用负载均衡:
+        随着业务发展,单台服务无法支撑访问的需要,于是就搭建多个服务形成集群。
+
+    服务端负载均衡和客户端负载均衡:
+        (1).通过ng负载均衡发送到不同server去处理,这是典型的服务端负载均衡。
+        (2).无论软硬负载,负载均衡器都会维护一个服务清单,然后通过心跳机制来删除故障机器,保障清单中的服务都是可以正常访问的。
+            当客户端请求到达时 -> 从可用列表选出一台server处理客户端请求。
+        (3)Ribbon client负载均衡,基于Http和TCP。
+        (4)客户端负载和服务端负载区别在于,可用服务清单存储的位置,在客户端负载均衡中,每个客户端节点都有一份自己要访问的服务端清单。
+
+
+    Ribbon负载均衡策略配置:
+        Ribbon作为后端负载均衡器,比ng更注重的是承担并发而不是请求分发,可以直接感知后台动态变化来指定分发策略。
+
+    Ribbon重试机制:
+        所以我们需要有像Nginx中那样重试的机制来保证请求的成功，哪怕延迟个几百毫秒响应给使用方,
+        在Zuul中我们可以配置ribbon的重试机制来实现
+        <!-- 重试机制 ，必须配，否则重试不生效 -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
+        # hystrix的超时时间必须大于ribbon的超时时间
+        hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds=10000
+        # 开启重试
+        zuul.retryable=true
+        spring.cloud.loadbalancer.retry.enabled=true
+        # 请求连接的超时时间
+        ribbon.connectTimeout=2000
+        # 请求处理的超时时间
+        ribbon.readTimeout=5000
+        # 对当前实例的重试次数
+        ribbon.maxAutoRetries=1
+        # 切换实例的重试次数
+        ribbon.maxAutoRetriesNextServer=3
+        # 对所有操作请求都进行重试
+        ribbon.okToRetryOnAllOperations=true
+
+8.声明式调用
+    spring-cloud-openfeign ，基于 Feign 实现。
+
+9.服务保障,断路器
+    spring-cloud-netflix-hystrix ，基于 Hystrix 实现。
+    spring-cloud-alibaba-sentinel ，基于 Sentinel 实现
+
+    防止服务级联故障,造成雪崩
+
+10.网关
+    spring-cloud-netflix-zuul ，基于 Zuul1 实现
+
+    使用网关服务，我们实现统一的功能：
+
+    动态路由
+    灰度发布
+    健康检查
+    限流
+    熔断
+    认证: 如数支持 HMAC, JWT, Basic, OAuth 2.0 等常用协议
+    鉴权: 权限控制，IP 黑白名单，同样是 OpenResty 的特性
+    可用性
+    高性能
+
+11.配置中心
+
+12.链路追踪
+
