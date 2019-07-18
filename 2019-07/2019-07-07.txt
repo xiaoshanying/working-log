@@ -1,0 +1,34 @@
+一.SpringBoot相关
+1.SpringBoot由大量的starter组成,每个starter是一个pom文件,里面包含必要的jar依赖。所以
+  Starter是主要用来简化依赖。
+
+2.SpringBoot支持需要引入父Pom,
+    <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>x.x.x.RELEASE</version>
+    </parent>
+
+3.父Pom主要做了两件事
+    所有jar包版本的统一管理
+    所有jar的依赖管理,其中包含springboot 给我们提供的很多的starter启动器
+
+
+
+
+4.SpringBoot Test如何测试Controller
+
+    @SpringBootTest(classes = xxxController.class)
+    @WebAppConfiguration
+    @RunWith(SpringJUnit4ClassRunner.class)
+    public class ControllerTest{
+
+         @Autowired
+         private XXXController controller;
+
+         @Test
+         public void testMethodName(){
+            TestCase.assertEquals("期望的结果",controller.methodName());
+         }
+
+    }
