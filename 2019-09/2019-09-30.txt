@@ -1,0 +1,78 @@
+1.浏览器跨iframe可以用postmessage技术进行通信
+
+2.浏览器在一个域里面向另一个域发送请求时,会出现跨域问题,解决方案:
+  浏览器会先发送一个options请求进行协商,如果协商字段返回允许跨域的头信息,则接口就可以正常调用。
+  一般跨域解决方案
+  (1)后端程序实现CorsFilter,在buildConfig()方法中配置允许跨域的信息
+  (2)如果步骤一配置好之后还是跨域,则看一下请求是否走nginx,如果走nginx,则需要在nginx上配置跨域
+     例如我在a.com下请求b.com下的接口
+     请求经b.com -> nginx ->反向代理到网关 ->转发到具体的服务
+     则此时可以配置以下nginx配置,在b.com nginx上配置
+     location /路径 {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        if($request_method = OPTIONS){
+            add_header Access-Control-Allow-Origin a.com(假如只允许a.com这个域跨域);
+            add_header Access-Control-Allow-Headers 自定义header,其他header;
+            add_header Access-Control-Allow-Methods GET,POST,OPTIONS;
+            add_header Access-Control-Allow-Credentials true;
+            return 200;
+        }
+        proxy_pass 反向代理地址;
+     }
+
+3.前端页面自动填单,可以利用js函数给对应xpath的按钮绑定事件,进行数据的填写,事件的触发。
+  校验xpath: document.querySelector('xpath').dispatchEvent(new Event('事件:例如dbclick'))
+
+4.可以用redis zset存储需要排名的对象
+
+5.当一个业务需要同时调用n个接口拿取数据,并且n个接口数据互相不影响时,可以用多线程,并发去跑这4个接口,
+  此时接口响应时间,只受最慢那一个调用的影响.
+
+6.在配置类里面定义线程池
+  @Configuration
+  public class ThreadPoolConfig{
+
+        @Bean(name = "threadPoolExecutor")
+        public ThreadPoolExecutor c(){
+            return new ThreadPoolExecutor(核心线程数,最大线程数,存活时间,时间单元,任务队列,拒绝策略);
+        }
+
+  }
+
+  引用:
+  @Autowired
+  private ThreadPoolExecutor threadPoolExecutor;
+
+  //提交一个callable任务
+  threadPoolExecutor.submit(() -> 任务);
+
+  //执行一个runnable任务
+  threadPoolExecutor.execute(() -> 任务);
+
+7.利用线程池,并行调用3个接口获取数据
+    @Autowired
+    private ThreadPoolExecutor threadPoolExecutor;
+
+    Future<List> list1 = threadPoolExecutor.submit(() -> {
+        //调用接口1
+        return list;
+    })
+
+    Future<List> list2 = threadPoolExecutor.submit(() -> {
+            //调用接口2
+            return list;
+    })
+
+
+    Future<List> list3 = threadPoolExecutor.submit(() -> {
+                //调用接口3
+                return list;
+    })
+
+    if(list1.get() != null && list2.get() != null && list3.get() != null){
+        result.addAll(list1.get());
+        result.addAll(list2.get());
+        result.addAll(list3.get());
+    }
