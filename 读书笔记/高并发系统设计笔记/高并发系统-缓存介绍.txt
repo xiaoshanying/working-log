@@ -1,0 +1,88 @@
+1.做一次内存寻址大概需要100ns,做一次磁盘查找则需要10ms。
+
+2.GuavaCache
+
+  public interface LocalCache<K,V>{
+        V get(K key);
+  }
+
+  public abstract class AbstractGuavaCache<K,V>{
+
+        //最大缓存条数
+        int maxSize = 10;
+
+        //数据缓存时长
+        int expireAfterWriteDuration = 60;
+
+
+        TimeUnit timeUnit  = TimeUnit.SECONDS;
+
+
+        LoadingCache<K,V> cache;
+
+        public LoadingCache<K,V> getCache(){
+            if(Objects.isNull(cache)){
+                synchronized(this){
+                    if(Objects.isNull(cache)){
+
+                        cache = CacheBuilder.newBuilder()
+                         //缓存数据的最大条数
+                        .maxmumSize(maxSize)
+                        //数据被创建多久后移除
+                        .expireAfterWrite(expireAfterWriteDuration,timeUnit)
+                        //开启统计
+                        .recordStats()
+                        .build(() -> return getData(key));
+                    }
+                }
+            }
+        }
+
+        //根据key从数据库或者其他地方取数据,然后保存到缓存中
+        protected abstract V getData(K key);
+
+        protected V getValue(K key) {
+            return getCache().get(key);
+        }
+
+  }
+
+  假如从user表获取数据并缓存
+  @Component
+  public class UserCache extends AbstractGuavaCache<String,User> implements LocalCache<String,User>{
+
+        UserService userService;
+
+        private UserCache(){
+            setMaxSize(1000);
+        }
+
+        //实现父类方法
+        protected User getData(String key){
+            User user = userService.getUser(key);
+            return user;
+        }
+
+        public User get(String key){
+            //调用父类getValue方法
+            return getValue(key);
+        }
+  }
+
+3.静态缓存
+  在 Nginx 上部署静态缓存可以减少对于后台应用服务器的压力。
+  例如，我们在做一些内容管理系统的时候，后台会录入很多的文章，前台在网站上展示文章内容，就像新浪，网易这种门户网站一样。
+  可以把文章页面渲染成静态页面缓存在nginx上。
+
+4.热点本地缓存
+  热点数据可以缓存在本地,用于缓解缓存中间件或者db的压力。
+  那么我们会在代码中使用一些本地缓存方案，如 HashMap，Guava Cache 或者是 Ehcache 等，
+  它们和应用程序部署在同一个进程中，优势是不需要跨网络调度，速度极快，所以可以来阻挡短时间内的热点查询.
+
+
+5.缓存适用场景
+  (1)读多写少
+  (2)缓存命中率是我们对于缓存最重要的一个监控项，越是热点的数据，缓存的命中率就越高。
+
+
+

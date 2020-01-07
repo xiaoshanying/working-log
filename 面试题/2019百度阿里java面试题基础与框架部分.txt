@@ -36,3 +36,92 @@
 
      1.8 ConcurrentHashMap其中抛弃了原有的 Segment 分段锁，而采用了 CAS + synchronized 来保证并发安全性.
   (6)TreeMap
+        存储结构是红黑树,排序默认按字符顺序排序
+
+  (7)LinkedHashMap内部维持了一个双向链表,可以保持顺序,当需要存储顺序数据时用
+
+6.HashMap为什么get set比较快
+    底层数组,数组支持随机访问,直接根据Key,得到存储位置,时间复杂度o(1)
+
+7.抽象类和接口的区别?
+    抽象类中可以有抽象方法和非抽象方法,接口中的方法都是抽象方法
+    类是单继承,接口可以继承多个接口
+    类可以实现多个接口
+
+8.什么情况下会发生栈内存溢出
+    栈是线程私有的,他的生命周期和线程相同,每个方法在执行时会创建一个栈桢,用来存储(局部变量表,操作数栈,动态链接,方法出口等信息)
+    局部变量表包含基本数据类型,对象引用类型（局部变量表编译期完成,运行期间不会变化）
+    方法递归超过了栈的深度,会出现栈内存溢出
+
+9.什么是nio,原理?
+    (1)文件IO,socket IO,调用的是底层的read,write系统调用函数
+        read调用把数据从内核缓冲区复制到进程缓冲区
+        write调用把数据从进程缓冲区复制到内核缓冲区
+        他们不负责数据在内核缓冲区和磁盘之间的交换,底层的读写交换,由操作系统完成。
+    (2)缓冲区的作用
+        减少频繁的系统IO,系统调用需要保存之前的进程数据和状态等信息。结束调用之后回来还需要恢复之前的信息
+        ，为了减少这种损耗时间，性能的系统调用,出现了缓冲区。
+        有了缓冲区,操作系统使用read函数把数据从内核缓冲区复制到进程缓冲区。
+        write把数据从进程缓冲区复制到内核缓冲区
+        等待缓冲区到达一定数量的时候，在进行IO调用,提升性能。
+    (3)非阻塞io,有数据阻塞读取,无数据直接返回
+       io多路复用,异步阻塞io,把事件注册到选择器上,单线程轮询选择器,看是否有事件完成。
+
+10.反射
+    Class.forName(className)内部实际调用的方法是Class.forName(className,true,classloader);
+    第二个boolean参数表示是否需要初始化,Class.forName(className)默认是需要初始化的，初始化会触发
+    目标对象的static块代码执行,static参数也会被再次初始化
+
+    ClassLoader.loadClass(className)方法,内部实际调用的方法是ClassLoader.loadClass(className,false)
+    第二个参数表示目标对象是否进行连接,fasle表示不连接,静态块不会得到执行。
+
+11.tomcat结构,类加载器流程
+    Connector和Container
+    Connector接收连接请求,分配线程让container处理
+    Container是容器的父接口,该容器的设计用的是典型的责任链模式。
+    Container由4个容器组件构成,Engine,Host,Context,Wrapper。这4个组件是父子关系
+
+    Tomcat处理请求过程
+        用户点击网页内容,请求被发送到本机8080端口,被在哪里监听的Connector获得
+        Connector把该请求交给它所在的Service的Engine处理
+        Engine获得请求,根据请求主机名匹配HOST
+        HOST去匹配上下文context路径
+        在mapping表中根据路径找到相应的servlet
+        构造HttpServletRequest对象和HttpServletResponse对象。作为参数调用JspServlet的doGet()或doPost()
+        context把执行完的HttpServletResponse对象返回给Host
+        host -> engine ->Connector ->浏览器
+    bootstrap加载jvm启动所需要的类
+    System加载tomcat启动类(CATALINA_HOME/bin)
+    应用类加载器加载在WEB-INF/classes中的类(应用程序类)
+    应用类加载器加载WEB-INF/lib中引用的外部类
+    通用类加载器加载catalina_home/lib下面的类
+
+12.aop最终的代理对象的代理方法是DynamicAdvisedInterceptor#incept
+
+13.Spring中beanFactory和factoryBean的区别
+    beanFactory用于管理Bean的一个工厂,在spring中所有的bean都是由beanFactory来进行管理的
+    factoryBean用户可以通过实现该接口定制化bean的逻辑
+
+14.Spring加载流程
+    加载环境 -> 加载配置文件 ->实例化bean ->bean注册到beanFactory
+
+15.Spring如何进行事务管理
+    声明事务(注解 + aop),编程事务。
+
+16.线程池的最大线程数目根据什么确定?
+    cpu密集型 = cpu总核数 + 1(可以充分利用空闲等待时间)
+    io密集型 = cpu * 2 + 1
+
+17.多线程的几种实现方式?
+    (1)实现Runnable接口
+    (2)继承Thread类,重写run方法
+    (3)实现callable()接口,用futureTask包装
+    (4)线程池创建
+        ExecutorService service = Executors.newSingleThreadExecutor()
+
+18.什么是线程安全
+    多个线程并发执行一段程序时,操作共享变量,不会出现程序异常或者数据异常。
+
+
+
+
