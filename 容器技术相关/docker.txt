@@ -1,0 +1,156 @@
+1.DevOps
+    微服务催生devOps,需要快速的部署,部署频率增加,快速的版本迭代。更快的故障恢复时间
+
+2.DevOps可以持续交付,更快的解决问题,快速的迭代,更稳定的操作环境
+
+
+3.CI功能
+    持续集成不同开发人员对存储库的更改,检查编译错误,打包代码,上传到服务器,版本备份。
+
+4.docker
+    容器化平台,将应用程序,以及依赖的环境全都打包放在一起。确保在任何环境都可以运行。
+
+5.如何获取到docker镜像
+    docker build [参数] PATH | URL | -
+    DockFile创建 docker build -t 标签 .
+    参数:
+        --build-arg=[] 设置镜像创建时的变量
+        --cpu-shares   设置cpu使用权重
+        --cpuset-cpus  指定使用的cpu id
+        --cpuset-mems  指定使用的内存id
+        -f             指定要使用的dockerfile的路径
+        --force-rm     设置镜像过程中删除中间容器
+        --isolation    设置容器隔离技术
+        --label=[]     设置容器使用的元数据
+        -m             设置内存最大值
+        --pull         尝试去更新镜像版本
+        -t             name:tag
+        --network      指定网络模式
+
+6.实例
+    根据当前目录DockFile创建镜像
+    docker build -t name:tag .
+
+    使用url的DockerFile创建镜像
+    docker build github.com/xxx/xxx
+
+    使用指定路径的dockerFile创建
+    docker build -f /path/Dockerfile .
+
+7.dockerFile中add和copy区别
+    copy仅支持将本地文件复制到容器中
+    add最佳用途将本地的tar文件自动提取到镜像中 add xxx.tar.gz /
+
+8.docker镜像
+    docker images  列出本地主机上的镜像
+    REPOSITORY  TAG   IMAGE ID  CREATED  SIZE
+    REPOSITORY:表示镜像的仓库源
+    TAG:镜像的标签
+    IMAGE ID:镜像ID
+    CREATED:镜像创建时间
+    SIZE:镜像大小
+
+    运行
+    docker run -it ubuntu:15.10 /bin/bash
+    -i:交互式操作
+    -t:终端
+    ubuntu:15.10 镜像
+    /bin/bash 放在镜像后面的是命令,这里用交互式shell
+
+    获取一个新的镜像
+    docker pull ubuntu:15.10
+
+
+    查找镜像
+    docker search 镜像名
+
+
+    下载镜像
+    docker pull 镜像名
+
+    删除镜像
+    docker rmi 镜像名
+
+9.dockerFile常见指令
+    from 基础镜像
+    maintainer 维护者
+    env PATH /usr/local/nginx/sbin:$PATH 设置环境变量(帮助系统找到所需要运行的软件)
+    ADD nginx-xxx.tar.gz /tmp/ 将文件放到指定目录下,会自动解压。文件需要和dockerfile在一个目录
+    RUN rpm \
+    && yum \
+    && yum
+    执行命令RUN,一次可以执行多条用&&连接。命令太长换行的话末尾加上`\`
+    多个命令最好不要单行RUN运行,因为每一个命令都是一层
+
+    WORKDIR /tmp/nginx WORKDIR 相当于cd到某个目录
+
+    COPY nginx.conf /usr/local/nginx/conf/将文件复制到容器
+
+    EXPOSE 80 443 暴露端口
+
+    ENTRYPOINT["nginx"] 运行命令,让镜像在创建容器时运行里面的命令,当然前提是这个镜像是使用dockerfile创建的
+    也就是说在执行docker run 时,ENTRYPOINT和CMD里面的命令是会执行的，两者可以单独使用,并不一定要同时存在。
+
+    CMD["nginx"] 运行命令。dockerfile的CMD指令是可以被覆盖的,也可以把他看做容器启动的一个默认命令,这个命令可以被覆盖
+    docker run 镜像名 [cmd命令] 此处cmd命令会覆盖dockerfile中的cmd命令。
+
+    ARG用于定义构件时需要的参数,比如可以在dockerfile中写上这句ARG key=value
+    docker build -arg name=value
+
+    VOLUME 指令创建一个可以从本地主机或其他容器挂载的挂载点
+
+    LABEL 定义一个标签
+
+    USER 切换属主身份,docker默认使用root用户,但若不需要,建议切换使用者身份
+
+10.构建-运行一个容器
+    docker build -t name:tag .
+    docker run -itd -p 8080:80 --name nginx
+
+11.docker容器相关命令
+    启动:docker run -it 镜像 /bin/bash
+    退出终端: exit
+    docker ps -a 查看所有的容器
+
+    docker start 容器编号启动一个已停止的容器
+
+    docker服务在后台运行
+    docker run -itd --name 名称 镜像 /bin/bash
+
+    停止一个容器
+    docker stop 容器id
+
+    重启容器
+    docker restart 容器id
+
+    进入容器
+        docker attach 容器id attach的话,如果从容器退出,会导致容器停止
+        docker exec -it 容器id /bin/bash 从容器退出,不会导致容器停止(推荐)
+
+    删除容器
+        docker rm -f 容器id
+
+    清理掉所有处于终止状态的容器
+        docker container prune
+
+12.例如运行一个web应用
+    例如运行一个flask应用
+    docker pull test/webapp
+    docker run -d -p test/webapp (python app.py)这一部分为命令
+    -d容器后台运行 -p将容器内部使用的网络端口映射到我们使用的主机上
+
+    docker ps
+
+    指定不同的端口映射
+    docker run -d -p 5000:8080 test/webapp python app.py
+
+
+    查看容器内部的标准输出
+    docker logs -f 容器id
+
+    docker inspect 查看容器的底层信息
+
+13.image和layer区别
+    image:docker镜像是由一系列只读层构建
+    layer:每个层代表dockerfile中的一行指令
+
